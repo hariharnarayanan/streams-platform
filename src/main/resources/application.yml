@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: streams-platform
+  main:
+     banner-mode: log
+
+logging.level.net.securustech.esp: INFO
+
+
+---

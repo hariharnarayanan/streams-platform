@@ -1,0 +1,218 @@
+import java.util.regex.Matcher
+
+buildscript {
+
+    ext {
+        springBootVersion = '2.2.6.RELEASE'
+        springRestDocsVersion = '1.1.2.RELEASE'
+        lombokVersion = "1.18.12"
+        springCloudVersion = '2.2.0.RELEASE'
+    }
+
+    repositories {
+
+        mavenLocal()
+        mavenCentral()
+
+        maven {
+            url "http://repository.jboss.org/nexus/content/groups/public/"
+        }
+        maven {
+            url "http://es-nexus01.dal.securustech.net/content/repositories/public/"
+        }
+        maven {
+            url "http://repository.jboss.org/nexus/content/groups/public/"
+        }
+        maven {
+            url "http://repo.spring.io/milestone/"
+        }
+
+    }
+
+    dependencies {
+
+        classpath group: 'org.springframework.boot', name: 'spring-boot-gradle-plugin', version: "${springBootVersion}"
+       // classpath 'org.hibernate.build.gradle:gradle-maven-publish-auth:2.0.1'
+    }
+}
+
+plugins {
+
+    id "org.asciidoctor.convert" version "1.5.6"
+    id "net.linguica.maven-settings" version "0.5"
+    id 'com.palantir.git-version' version "0.7.3"
+    id 'net.researchgate.release' version '2.6.0'
+    id "com.gorylenko.gradle-git-properties" version "1.4.17"
+    id "org.sonarqube" version "2.6.2"
+}
+
+apply plugin: 'maven-publish'
+//apply plugin: 'maven-publish-auth'
+apply plugin: 'org.springframework.boot'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+def details = versionDetails()
+
+String gitTagName = project.version
+String bambooBuildNumber = System.getProperty("bamboo_buildNumber")
+String buildNumber = bambooBuildNumber
+
+allprojects {
+
+    if (project.hasProperty('release.releaseVersion')) {
+
+        gitTagName = details.branchName + "/" + project.getProperty('release.releaseVersion')
+        println "\tGit Tag Name :-> " + gitTagName
+
+        project.version = project.getProperty('release.releaseVersion')
+    }
+
+    apply plugin: 'jacoco'
+    apply plugin: 'idea'
+    apply plugin: 'java'
+    apply plugin: 'maven'
+    apply plugin: 'io.spring.dependency-management'
+
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+
+
+    repositories {
+
+        mavenLocal()
+        mavenCentral()
+
+        maven {
+
+            url "http://es-nexus01.dal.securustech.net/content/repositories/public/"
+        }
+        maven {
+
+            url "https://artifacts.alfresco.com/nexus/content/groups/public/"
+        }
+        maven {
+
+            url 'https://repo.adobe.com/nexus/content/repositories/public/'
+        }
+        maven {
+
+            url "http://repo.spring.io/milestone/"
+        }
+        maven {
+
+            url "http://repo.spring.io/libs-milestone/"
+        }
+    }
+}
+
+repositories {
+
+    mavenLocal()
+    mavenCentral()
+
+    maven {
+
+        url "http://es-nexus01.dal.securustech.net/content/repositories/public/"
+    }
+    maven {
+
+        url "https://repo.spring.io/milestone/"
+    }
+}
+
+dependencies {
+
+
+    compileOnly("org.projectlombok:lombok:${lombokVersion}")
+    annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+
+    compile 'org.springframework.boot:spring-boot-starter-actuator'
+    compile 'org.springframework.boot:spring-boot-starter-security'
+    compile 'org.springframework.boot:spring-boot-starter-web'
+
+    compile group: 'ch.qos.logback.contrib', name: 'logback-jackson', version: '0.1.5'
+    compile group: 'ch.qos.logback.contrib', name: 'logback-json-classic', version: '0.1.5'
+    compile group: 'org.springframework.cloud', name: 'spring-cloud-stream', version: '3.0.0.RELEASE'
+
+
+    compile group: 'org.springframework.cloud', name: 'spring-cloud-stream-binder-kafka-streams', version: '3.0.0.RELEASE'
+    compile group: 'org.springframework.cloud', name: 'spring-cloud-stream-binder-kafka', version: '3.0.0.RELEASE'
+    compile group: 'org.springframework.cloud', name: 'spring-cloud-stream-binder-kafka-core', version: '3.0.0.RELEASE'
+    compile "org.springframework.cloud:spring-cloud-starter-config:${springCloudVersion}"
+    compile group: 'org.apache.commons', name: 'commons-collections4', version: '4.4'
+    compile 'com.google.code.gson:gson:2.8.0'
+    testCompile("junit:junit")
+}
+
+sonarqube {
+    properties {
+        property 'sonar.projectName', "${project.name}"
+        property 'sonar.projectKey', "${project.name}"
+        property 'sonar.host.url', 'http://ld-midsrvcs22.lab.securustech.net:9000'
+        property 'sonar.login', 'bc15506b7e8ba9ef2aef51522fa3378ae3dcfab1'
+        property 'sonar.projectVersion', "${project.name}-${project.version}"
+    }
+}
+
+afterReleaseBuild.dependsOn publish
+
+release {
+    failOnCommitNeeded = false
+    failOnPublishNeeded = false
+    failOnSnapshotDependencies = true
+    failOnUnversionedFiles = true
+    failOnUpdateNeeded = true
+    revertOnFail = true
+    preCommitText = ''
+    preTagCommitMessage = "EWS Release for $artifactId : $version - Pre Tag Commit :-> "
+    tagCommitMessage = "EWS Release for $artifactId : $version - Creating Git Tag :-> "
+    newVersionCommitMessage = "Release for $artifactId : $version - New Version Commit :-> "
+    tagTemplate = gitTagName
+    versionPropertyFile = 'gradle.properties'
+    versionProperties = []
+    buildTasks = ['build']
+    versionPatterns = [
+            /(\d+)([^\d]*$)/: { Matcher m, Project p -> m.replaceAll("${(m[0][1] as int) + 1}${m[0][2]}") }
+    ]
+    scmAdapters = [
+            net.researchgate.release.GitAdapter,
+            net.researchgate.release.SvnAdapter,
+            net.researchgate.release.HgAdapter,
+            net.researchgate.release.BzrAdapter
+    ]
+
+    git {
+        requireBranch = details.branchName
+        pushToRemote = 'origin'
+        pushToBranchPrefix = ''
+        commitVersionFileOnly = false
+        signTag = false
+    }
+}
+
+group 'net.securustech.esp'
+
+project.tasks.publish.dependsOn bootJar
+
+publishing {
+
+    publications {
+
+        mavenJava(MavenPublication) {
+            artifact bootJar
+            if (project.hasProperty('release.releaseVersion')) {
+                version = project.getProperty('release.releaseVersion')
+            }
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            //name "nexus"
+            //url "http://es-nexus01.dal.securustech.net/content/repositories/releases/"
+            url "C:\\users\\hnarayanan\\.m2\\repository"
+        }
+    }
+}

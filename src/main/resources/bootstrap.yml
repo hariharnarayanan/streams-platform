@@ -1,0 +1,9 @@
+spring:
+  profiles: local
+
+logging:
+  config: ./src/main/resources/logback-spring.xml
+  file:
+    name: ./logs/streams_app.log
+
+---
